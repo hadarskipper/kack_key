@@ -3,7 +3,7 @@ import time
 
 
 class Model1Runner:
-    def __init__(self, output_key):
+    def __init__(self):
         self.name = 'model_1'
         self.t_predict = 30
         self.t_overlap = 10
@@ -34,5 +34,5 @@ def agg_time(proba_list):
     return np.argmax(np.mean(np.stack(proba_list, axis=0), axis=0))
 
 
-def get_last_T_data(T):
+def get_last_T_data(live_chanel, live_idx, T):
     return None

@@ -8,7 +8,6 @@ import model_1, model_2
 import wave
 import os
 
-mp.freeze_support()
 
 # Constants
 file_min_max   = 5  # Maximum length (Minutes) for a record
@@ -20,8 +19,6 @@ NUM_CHANNELS   = 5
 data_feed_HOST = '0.0.0.0'  # all availabe interfaces
 data_feed_PORT = 5404  # arbitrary non privileged port
 
-live_data_list   = [mp.RawArray('b', N_max) for _ in range(5)]
-current_idx_list = [mp.RawValue('i', 0) for _ in range(5)]
 server_input_log = []
 exit_bool        = [False]
 current_prediction = {}
@@ -30,9 +27,6 @@ channel_process    = []
 model_process = [[] for _ in range(5)]
 
 # Paths
-PATH_RECORDING = r'C:\PS\{}\{}\{}.wav'
-manager = mp.Manager()
-model_output_list = [manager.dict() for _ in range(5)]
 
 model_list = [model_1.Model1Runner, model_2.Model2Runner]
 
@@ -105,7 +99,8 @@ def main():
 
     for i in range(5):
         for model in model_list:
-            model_process[i].append(mp.Process(model.run, args=(live_data_list[i], current_idx_list[i], model_output_list[i])))
+            model_inst = model()
+            model_process[i].append(mp.Process(target=model_inst.run, args=(model_output_list[i], live_data_list[i], current_idx_list[i])))
             model_process[i][-1].start()
 
 
@@ -119,6 +114,14 @@ def main():
 
 
 if __name__ == '__main__':
+    mp.freeze_support()
+
+    #   shared objects
+    live_data_list = [mp.RawArray('b', N_max) for _ in range(5)]
+    current_idx_list = [mp.RawValue('i', 0) for _ in range(5)]
+    manager = mp.Manager()
+    model_output_list = [manager.dict() for _ in range(5)]
+
     #_ Listen to the stream of data
     data_feed_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     data_feed_socket.bind((data_feed_HOST, data_feed_PORT))
