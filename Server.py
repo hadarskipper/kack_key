@@ -1,7 +1,7 @@
 import socket
 from threading import Thread
 import multiprocessing as mp
-import numpy
+import numpy as np
 import time
 import model_1, model_2
 # import db_lib
@@ -11,12 +11,13 @@ import os
 
 # Constants
 file_min_max   = 5  # Maximum length (Minutes) for a record
-T_max          = 60  # sec
+packets_n      = 1000*60  #  about 60 sec
+N_max          = packets_n*64
 CAS_fs         = 31250  # Hz
 sampwidth      = 2  # bytes
-N_max          = T_max * CAS_fs * sampwidth
+T_max          = N_max/sampwidth/CAS_fs
 NUM_CHANNELS   = 5
-data_feed_HOST = '0.0.0.0'  # all availabe interfaces
+data_feed_HOST = '127.0.0.1'  # localhost
 data_feed_PORT = 5404  # arbitrary non privileged port
 
 server_input_log = []
@@ -55,15 +56,20 @@ def data_feed(print_droped=True):
             for i in range(5):
                 live_data_list[i][current_idx_list[i].value:current_idx_list[i].value+64] = seg_raw[872+i*64:872+(i+1)*64]
                 current_idx_list[i].value += 64
-                current_idx_list[i].value %= 64
+                current_idx_list[i].value %= N_max
 
 
 def writeChannel(q, arr, index):
+    time.sleep(T_max)
+
+    arr = np.frombuffer(arr, dtype='uint8')
     while True:
         if q.empty():
             pass
         elif q.get() == 'Start':
             dir_path = q.get()
+
+            os.makedirs(dir_path, exist_ok=True)
 
             file_num = 0
             while True:
@@ -72,13 +78,14 @@ def writeChannel(q, arr, index):
                 else:
                     q.get()
                     break
-
                 wave_file = wave.open(os.path.join(dir_path, '{}.wav'.format(file_num)), "wb")
                 wave_file.setparams((1, 2, CAS_fs, 0, 'NONE', 'not compressed'))
                 curr_time = time.time()
                 for i in range(file_min_max):
-                    wave_file.writeframesraw(arr[index.value:] + arr[:index.value])
-                    curr_time += 60
+                    # print(index.value)
+                    raw = np.concatenate([arr[index.value:], arr[:index.value]])
+                    wave_file.writeframesraw(raw)
+                    curr_time += T_max
                     time.sleep(curr_time - time.time())
                 wave_file.close()
                 file_num += 1
@@ -104,11 +111,24 @@ def main():
             model_process[i][-1].start()
 
 
-    curr_time = time.time()
-    while True:
-        if time.time()>curr_time:
-            curr_time += 5
-            print(model_output_list[0])
+    ### test save wave ###
+    dir_path = r'C:\Users\hadar\CS\hack_key\wav\chanel'
+    for i in range(5):
+        channel_queues[i].put('Start')
+        channel_queues[i].put(dir_path+str(i))
+    time.sleep(60*7)
+    for i in range(5):
+        channel_queues[i].put('Stop')
+
+    # arr = np.frombuffer(live_data_list[0], dtype='uint8')
+    # start_time = time.time()
+    # curr_time = start_time
+    # while True:
+    #     if time.time() > curr_time:
+    #         print(time.time() - start_time, end='  -  ')
+    #         print(arr[:5])
+    #         curr_time += 4
+    #         time.sleep(curr_time - time.time())
 
     data_feed_thread.join()
 
