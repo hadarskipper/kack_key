@@ -26,6 +26,8 @@ current_prediction = {}
 channel_queues     = []
 channel_process    = []
 model_process = [[] for _ in range(5)]
+output_dic_template = dict([('algo_par{}'.format(i), -1.0) for i in range(1, 11)] +
+                           [('algo_par{}_conf'.format(i), 0.0) for i in range(1, 11)])
 
 # Paths
 
@@ -140,7 +142,7 @@ if __name__ == '__main__':
     live_data_list = [mp.RawArray('b', N_max) for _ in range(5)]
     current_idx_list = [mp.RawValue('i', 0) for _ in range(5)]
     manager = mp.Manager()
-    model_output_list = [manager.dict() for _ in range(5)]
+    model_output_list = [manager.dict(output_dic_template) for _ in range(5)]
 
     #_ Listen to the stream of data
     data_feed_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)

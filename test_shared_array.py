@@ -7,7 +7,13 @@ def worker(shared_arr, i, v):
 
 if __name__ == '__main__':
     X = mp.RawArray('f', 50)
-
+    manager = mp.Manager()
+    d = {'asdf': 0, 'asdfdf': 20}
+    d_mp = manager.dict({'asdf': 0, 'asdfdf': 20})
+    d['asdf'] = 100
+    print(d_mp)
+    print(type(d_mp))
+    print(d)
     print(np.frombuffer(X, dtype='float32'))
 
     process_list = []

@@ -4,7 +4,7 @@ import time
 
 class Model1Runner:
     def __init__(self):
-        self.name = 'model_1'
+        self.name = 'algo_par1'
         self.t_predict = 30
         self.t_overlap = 10
         self.n_laps_predict = 5
@@ -17,7 +17,9 @@ class Model1Runner:
             proba = predict_proba(data)
             proba_list.pop(0)
             proba_list.append(proba)
-            out_dic[self.name] = agg_time(proba_list)
+            pred, conf = agg_time(proba_list)
+            out_dic[self.name] = pred
+            out_dic[self.name+'_conf'] = conf
             curr_time += self.t_overlap
             try:
                 time.sleep(curr_time - time.time())
@@ -31,7 +33,8 @@ def predict_proba(x_arr):
 
 
 def agg_time(proba_list):
-    return np.argmax(np.mean(np.stack(proba_list, axis=0), axis=0))
+    proba_mean = np.mean(np.stack(proba_list, axis=0), axis=0)
+    return np.argmax(proba_mean), np.max(proba_mean)
 
 
 def get_last_T_data(live_chanel, live_idx, T):
