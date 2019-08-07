@@ -3,15 +3,13 @@ import time
 
 
 class Model1Runner:
-    def __init__(self, out_dic, output_key):
+    def __init__(self, output_key):
         self.name = 'model_1'
         self.t_predict = 30
         self.t_overlap = 10
         self.n_laps_predict = 5
-        self.out_dic = out_dic
-        self.output_key = output_key
 
-    def run(self, live_chanel, live_idx):
+    def run(self, out_dic, live_chanel, live_idx):
         proba_list = [np.zeros((3,)) for _ in range(self.n_laps_predict)]
         curr_time = time.time()
         while True:
@@ -19,7 +17,7 @@ class Model1Runner:
             proba = predict_proba(data)
             proba_list.pop(0)
             proba_list.append(proba)
-            self.out_dic[self.output_key] = agg_time(proba_list)
+            out_dic[self.name] = agg_time(proba_list)
             curr_time += self.t_overlap
             try:
                 time.sleep(curr_time - time.time())

@@ -2,14 +2,19 @@ import socket
 from threading import Thread
 import multiprocessing as mp
 import numpy
+import time
 import soundfile
 import model_1, model_2
+import db_lib
+import math
 import sqlalchemy
 import struct
 import wave
+import os
 
 
 # Constants
+file_min_max   = 5  # Maximum length (Minutes) for a record
 T_max          = 60  # sec
 CAS_fs         = 31250  # Hz
 sampwidth      = 2  # bytes
@@ -23,6 +28,8 @@ current_idx_list = [mp.RawValue('i', 0) for _ in range(5)]
 server_input_log = []
 exit_bool        = [False]
 current_prediction = {}
+channel_queues     = []
+
 # Paths
 PATH_RECORDING = r'C:\PS\{}\{}\{}.wav'
 manager = mp.Manager()
@@ -55,13 +62,9 @@ def server_input():
     print('server_input_thread has finished...')
 
 # Send NumPy array, every channel at a time
-def InputToModel():
+def RunModel():
     for i in range(NUM_CHANNELS):
         input_to_model_q.put(numpy.asarray(live_data_list[i]))
-
-def OutputFromModel():
-    for i in range(NUM_CHANNELS):
-        output_from_model_q.get()
 
 def data_feed(print_droped=True):
     while 1:
@@ -75,21 +78,37 @@ def data_feed(print_droped=True):
                 live_data_list[i][current_idx_list[i].value:current_idx_list[i].value+64] = seg_raw[872+i*64:872+(i+1)*64]
                 current_idx_list[i].value += 64
                 current_idx_list[i].value %= 64
-    print('data_feed_thread has finished...')
 
-def writeChannels():
-    soundfile.write(PATH_RECORDING, data, CAS_fs)
-def client_handle(conn):
-    while 1:
-        if exit_bool[0]:
-            print('in client_handle_thread - exit_bool is True...')
-            serversocket.close()
-            break
-        ## TODO ##
-        pass
+
+def writeChannel(q, arr, index):
+    while True:
+        if q.empty():
+            pass
+        elif q.get() == 'Start':
+            dir_path = q.get()
+
+            file_num = 0
+            while True:
+                if q.empty():
+                    pass
+                else:
+                    q.get()
+                    break
+
+                wave_file = wave.open(os.path.join(dir_path, f'{file_num}.wav'), "wb")
+                wave_file.setparams((1, 2, CAS_fs, 0, 'NONE', 'not compressed'))
+                curr_time = time.time()
+                for i in range(file_min_max):
+                    wave_file.writeframesraw(arr[index.value:] + arr[:index.value])
+                    curr_time += 60
+                    time.sleep(curr_time - time.time())
+                wave_file.close()
+                file_num += 1
+
+
 
 def recordChannel(channel):
-
+    pass
 
 
 def main():
@@ -101,8 +120,11 @@ def main():
     server_input_thread = Thread(target=server_input)
     server_input_thread.start()
 
+    for i in range(5):
+        channel_queues.append(mp.Queue())
+        mp.Process(target=writeChannel, args=(channel_queues[i], live_data_list[i], current_idx_list[i]))
+
     data_feed_thread.join()
-    server_input_thread.join()
 
 
 if __name__ == '__main__':
